@@ -44,15 +44,14 @@ def matches_similar(word, letters):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    table = None  # <-- Головна зміна!
+    table = None
     letters_to_find = ""
 
     if request.method == "POST":
         letters_to_find = request.form.get("letters", "").strip().lower()
         if letters_to_find:
             letters_set = set(letters_to_find)
-            file_path = "clean_words.txt"
-            words = read_words(file_path)
+            words = WORDS  # <-- тепер використовуємо вже завантажений список
 
             exact_matches = [w for w in words if matches_exact(w, letters_to_find)]
             similar_matches = [w for w in words if matches_similar(w, letters_to_find)]
@@ -67,7 +66,10 @@ def index():
                 right_word = similar_matches[i] if i < len(similar_matches) else ''
                 table.append((left_word, right_word))
 
-    return render_template("index.html", table=table, letters=letters_to_find)
+    return render_template("index.html", table=table, letters_to_find=letters_to_find)
+
+
+    
 
 
 if __name__ == "__main__":
