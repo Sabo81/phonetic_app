@@ -11,8 +11,7 @@ pairs = {
     'з': 'с', 'с': 'з', 'ж': 'ш', 'ш': 'ж', 'дж': 'ч', 'ч': 'дж',
     'щ': 'ш', 'дз': 'ц', 'ц': 'дз', 'в': 'ф', 'ф': 'в',
     'ц': 'с', 'е': 'и', 'и': 'е', 'а': 'о', 'о': 'а',
-    'і': 'и', 'я': 'й', 'й': 'я', 'ю': 'й', 'є': 'й',
-    'ї': 'й'
+    'і': 'и', 'я': 'й', 'й': 'я', 'ю': 'й', 'є': 'й', 'ї': 'й'
 }
 
 # --- Завантаження слів з GitHub ---
@@ -33,6 +32,11 @@ def load_words_from_github(url):
         print(f"❌ Помилка завантаження слів: {e}")
         return set()
 
+# --- Завантаження лише один раз при запуску ---
+WORDS = load_words_from_github(
+    "https://raw.githubusercontent.com/Sabo81/phonetic_app/main/clean_words.txt"
+)
+
 # --- Порівняння ---
 def matches_exact(word: str, letters: str) -> bool:
     pos = 0
@@ -49,14 +53,6 @@ def matches_similar(word: str, letters: str) -> bool:
             if ch == target or ch == pairs.get(target):
                 pos += 1
     return pos == len(letters)
-
-# --- Завантаження при старті ---
-@app.before_request
-def initialize():
-    global WORDS
-    WORDS = load_words_from_github(
-        "https://raw.githubusercontent.com/Sabo81/phonetic_app/main/clean_words.txt"
-    )
 
 # --- Основний маршрут ---
 @app.route("/", methods=["GET", "POST"])
