@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024  # ліміт 1 МБ на запит
 
-# Мапа схожих букв для швидкого пошуку
+# --- Глобальні змінні ---
+WORDS = set()
 pairs = {
     'б': 'п', 'п': 'б', 'д': 'т', 'т': 'д', 'г': 'х', 'х': 'г',
     'з': 'с', 'с': 'з', 'ж': 'ш', 'ш': 'ж', 'дж': 'ч', 'ч': 'дж',
@@ -12,19 +14,19 @@ pairs = {
     'ї': 'й'
 }
 
-def read_words(file_path):
-    """Зчитує слова з файлу, уникаючи дублювання."""
+
+# --- Функції ---
+def load_words(file_path: str):
+    """Завантажує слова лише один раз при запуску додатку."""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            return list(set(f.read().split()))
-    except UnicodeDecodeError:
-        with open(file_path, 'r', encoding='cp1251') as f:
-            return list(set(f.read().split()))
-    except FileNotFoundError:
-        print("Файл не знайдено.")
-        return []
+            return set(line.strip().lower() for line in f if 3 < len(line.strip()) <= 11)
+    except Exception as e:
+        print(f"Помилка при читанні файлу: {e}")
+        return set()
 
-def matches_exact(word, letters):
+
+def matches_exact(word: str, letters: str) -> bool:
     """Перевірка на точну послідовність букв."""
     pos = 0
     for ch in word:
@@ -32,7 +34,8 @@ def matches_exact(word, letters):
             pos += 1
     return pos == len(letters)
 
-def matches_similar(word, letters):
+
+def matches_similar(word: str, letters: str) -> bool:
     """Перевірка з урахуванням схожих звуків."""
     pos = 0
     for ch in word:
@@ -42,34 +45,40 @@ def matches_similar(word, letters):
                 pos += 1
     return pos == len(letters)
 
+
+# --- Основний маршрут ---
 @app.route("/", methods=["GET", "POST"])
 def index():
-    table = None  # <-- Головна зміна!
+    table = None
     letters_to_find = ""
 
     if request.method == "POST":
         letters_to_find = request.form.get("letters", "").strip().lower()
         if letters_to_find:
             letters_set = set(letters_to_find)
-            file_path = "clean_words.txt"
-            words = read_words(file_path)
 
-            exact_matches = [w for w in words if matches_exact(w, letters_to_find)]
-            similar_matches = [w for w in words if matches_similar(w, letters_to_find)]
+            # Використовуємо генератори для економії пам’яті
+            exact_matches = (w for w in WORDS if matches_exact(w, letters_to_find))
+            similar_matches = (w for w in WORDS if matches_similar(w, letters_to_find))
 
-            exact_matches = sorted(exact_matches, key=len)[:100]
-            similar_matches = sorted(similar_matches, key=lambda x: (len(set(x) & letters_set), len(x)))[:100]
+            # Обмежуємо кількість результатів
+            exact_list = sorted(list(exact_matches), key=len)[:100]
+            similar_list = sorted(list(similar_matches),
+                                  key=lambda x: (len(set(x) & letters_set), len(x)))[:100]
 
-            max_len = max(len(exact_matches), len(similar_matches))
-            table = []
-            for i in range(max_len):
-                left_word = exact_matches[i] if i < len(exact_matches) else ''
-                right_word = similar_matches[i] if i < len(similar_matches) else ''
-                table.append((left_word, right_word))
+            # Формуємо таблицю для HTML
+            table = [
+                (exact_list[i] if i < len(exact_list) else '',
+                 similar_list[i] if i < len(similar_list) else '')
+                for i in range(max(len(exact_list), len(similar_list)))
+            ]
 
-    return render_template("index.html", table=table, letters=letters_to_find)
+    return render_template("index.html", table=table, letters_to_find=letters_to_find)
 
 
+# --- Завантаження при старті ---
 if __name__ == "__main__":
-    app.run()  # або залишити app.run(debug=True) тільки локально
-
+    print("🔄 Завантаження слів...")
+    WORDS = load_words("clean_words.txt")
+    print(f"✅ Завантажено {len(WORDS):,} слів.")
+    app.run(debug=False, host="0.0.0.0", port=5000)
