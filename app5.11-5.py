@@ -15,21 +15,22 @@ pairs = {
 }
 
 # --- Завантаження слів з GitHub ---
-def load_words_from_github(_=None):
-    print("📂 Завантаження clean_words.txt локально...")
+def load_words_from_github(url):
+    print("🌐 Завантаження clean_words.txt з GitHub...")
     try:
-        with open("clean_words.txt", "r", encoding="utf-8") as f:
-            words = {
-                w.strip().lower()
-                for w in f.read().split()
-                if 4 < len(w.strip()) <= 11
-            }
-        print(f"✅ Завантажено {len(words):,} слів локально.")
+        resp = requests.get(url)
+        resp.raise_for_status()
+        resp.encoding = "utf-8"
+        words = {
+            w.strip().lower()
+            for w in resp.text.split()
+            if 4 < len(w.strip()) <= 11
+        }
+        print(f"✅ Завантажено {len(words):,} слів.")
         return words
     except Exception as e:
-        print(f"❌ Помилка при завантаженні: {e}")
+        print(f"❌ Помилка завантаження слів: {e}")
         return set()
-
 
 # --- Завантаження лише один раз при запуску ---
 WORDS = load_words_from_github(
