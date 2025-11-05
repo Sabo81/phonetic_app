@@ -51,7 +51,7 @@ def matches_similar(word: str, letters: str) -> bool:
     return pos == len(letters)
 
 # --- Завантаження при старті ---
-@app.before_first_request
+@app.before_request
 def initialize():
     global WORDS
     WORDS = load_words_from_github(
