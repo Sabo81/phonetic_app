@@ -1,11 +1,14 @@
 from flask import Flask, render_template, request
 import requests
+import os
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024  # ліміт 1 МБ
 
 # --- Глобальні змінні ---
 WORDS = set()
+TMP_FILE = "/tmp/clean_words.txt"  # локальний кеш Render
+
 pairs = {
     'б': 'п', 'п': 'б', 'д': 'т', 'т': 'д', 'г': 'х', 'х': 'г',
     'з': 'с', 'с': 'з', 'ж': 'ш', 'ш': 'ж', 'дж': 'ч', 'ч': 'дж',
@@ -14,27 +17,35 @@ pairs = {
     'і': 'и', 'я': 'й', 'й': 'я', 'ю': 'й', 'є': 'й', 'ї': 'й'
 }
 
-# --- Завантаження слів з GitHub ---
-def load_words_from_github(_=None):
-    print("📂 Завантаження clean_words.txt локально...")
+
+# --- Завантаження слів з GitHub або локального кешу ---
+def load_words_from_github(url):
+    print("🔍 Перевіряю, чи файл вже є локально...")
+
+    if os.path.exists(TMP_FILE):
+        print("✅ Використовую локальний кеш із /tmp")
+        with open(TMP_FILE, "r", encoding="utf-8") as f:
+            return {w.strip().lower() for w in f if 4 < len(w.strip()) <= 11}
+
+    print("🌐 Завантаження clean_words.txt з GitHub...")
     try:
-        with open("clean_words.txt", "r", encoding="utf-8") as f:
-            words = {
-                w.strip().lower()
-                for w in f.read().split()
-                if 4 < len(w.strip()) <= 11
-            }
-        print(f"✅ Завантажено {len(words):,} слів локально.")
+        resp = requests.get(url)
+        resp.raise_for_status()
+        resp.encoding = "utf-8"
+        text = resp.text
+
+        # Зберігаємо файл у /tmp для повторного використання
+        with open(TMP_FILE, "w", encoding="utf-8") as f:
+            f.write(text)
+
+        words = {w.strip().lower() for w in text.split() if 4 < len(w.strip()) <= 11}
+        print(f"✅ Завантажено {len(words):,} слів і збережено у /tmp.")
         return words
+
     except Exception as e:
-        print(f"❌ Помилка при завантаженні: {e}")
+        print(f"❌ Помилка завантаження: {e}")
         return set()
 
-
-# --- Завантаження лише один раз при запуску ---
-WORDS = load_words_from_github(
-    "https://raw.githubusercontent.com/Sabo81/phonetic_app/main/clean_words.txt"
-)
 
 # --- Порівняння ---
 def matches_exact(word: str, letters: str) -> bool:
@@ -44,6 +55,7 @@ def matches_exact(word: str, letters: str) -> bool:
             pos += 1
     return pos == len(letters)
 
+
 def matches_similar(word: str, letters: str) -> bool:
     pos = 0
     for ch in word:
@@ -52,6 +64,14 @@ def matches_similar(word: str, letters: str) -> bool:
             if ch == target or ch == pairs.get(target):
                 pos += 1
     return pos == len(letters)
+
+
+# --- Ініціалізація при старті ---
+print("🚀 Ініціалізація...")
+WORDS = load_words_from_github(
+    "https://raw.githubusercontent.com/Sabo81/phonetic_app/main/clean_words.txt"
+)
+
 
 # --- Основний маршрут ---
 @app.route("/", methods=["GET", "POST"])
@@ -78,6 +98,7 @@ def index():
             ]
 
     return render_template("index.html", table=table, letters_to_find=letters_to_find)
+
 
 # --- Запуск ---
 if __name__ == "__main__":
