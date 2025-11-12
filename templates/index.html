@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- Основний стиль --- */
         body {
             margin: 0;
             font-family: "Poppins", sans-serif;
@@ -66,10 +65,7 @@
             border-radius: 12px;
             outline: none;
             transition: 0.3s;
-            
         }
-        
-
 
         input[type="text"]::placeholder {
             color: #999;
@@ -99,7 +95,6 @@
             box-shadow: 0 0 15px rgba(142, 68, 173, 0.6);
         }
 
-        /* --- Таблиця --- */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -125,10 +120,7 @@
 
         tr:nth-child(even) { background-color: #f3e8ff; }
         tr:nth-child(odd) { background-color: #ede7f6; }
-
-        tr:hover td {
-            background-color: #fce4ec;
-        }
+        tr:hover td { background-color: #fce4ec; }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
@@ -149,9 +141,7 @@
             font-weight: 600;
         }
 
-        footer a:hover {
-            text-decoration: underline;
-        }
+        footer a:hover { text-decoration: underline; }
     </style>
 </head>
 
@@ -159,16 +149,15 @@
     <div class="container">
         <h1>Звукові асоціації</h1>
 
-        
         <p style="text-indent: 60px;">
             Для вивчення англійської або будь-якої іншої мови світу, складних термінів або важливої інформації використовуйте метод асоціацій.
             Цей метод дозволяє дуже швидко вивчити іноземну мову, розвиває мозкову активність, покращує мислення і є альтернативою нудного зубріння.
-            <br>
         </p>
+
         <p style="text-indent: 60px;">
             Щоб запам’ятати слово, введіть у поле пошуку звуки, які Ви вимовляєте — і програма підбере асоціації. Потім зв’яжіть переклад та асоціацію.
-            <br><br>
         </p> 
+
         <p>  
             <b>Приклади:</b><br>
             <b>wood</b> – <i>дерево</i>. <br>Пошук “вуд” → <b>вудка</b> →→ <i>дерев’яна</i> <b>вудка</b> 🌲<br>
@@ -177,40 +166,60 @@
             <b>cranberry</b> – <i>журавлина</i>. <br>Пошук “кран” → <b>кран </b>, пошук “бер” → <b> бере</b> →→ <b>кран бере</b> і вантажить <i>журавлину</i> 🏗️
         </p>
 
-        <form method="post">
-    <input type="text" name="letters" placeholder="Введіть звуки для пошуку. Наприклад: 'вуд'" value="{{ letters }}">
-    <button type="submit">🔍 Знайти</button>
-</form>
+        <form method="post" id="searchForm">
+            <input type="text" name="letters" placeholder="Введіть звуки для пошуку (наприклад: 'вуд')" value="{{ letters }}">
+            
+            <!-- приховані поля -->
+            <input type="hidden" name="start_index" id="start_index" value="{{ start_index }}">
+            <input type="hidden" name="next_index" value="{{ next_index }}"> <!-- ДОДАНО -->
 
-{% if table is not none %}
-    {% if table|length > 0 %}
-        <table>
-            <tr>
-                <th>Точне співпадіння</th>
-                <th>Схоже звучання</th>
-            </tr>
-            {% for left, right in table %}
-            <tr>
-                <td>{{ left }}</td>
-                <td>{{ right }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    {% else %}
-        <p style="text-align:center; color:#c0392b; font-size:1.9em;">Нічого не знайдено 😔</p>
-    {% endif %}
-{% endif %}
+            <button type="submit" id="searchButton">🔍 Знайти</button>
 
+            {% if table %}
+                {% if not search_done %}
+                    <button type="submit" name="action" value="next">➡️ Далі</button>
+                {% endif %}
+            {% endif %}
+        </form>
+
+        {% if table is not none %}
+            {% if table|length > 0 %}
+                <table>
+                    <tr>
+                        <th>Точне співпадіння</th>
+                        <th>Схоже звучання</th>
+                    </tr>
+                    {% for left, right in table %}
+                    <tr>
+                        <td>{{ left }}</td>
+                        <td>{{ right }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            {% else %}
+                <p style="text-align:center; color:#c0392b; font-size:1.9em;">Нічого не знайдено 😔</p>
+            {% endif %}
+        {% endif %}
+
+        {% if search_done %}
+            <p style="text-align:center; font-size:1.9em; color:#5b2c6f;"><b>Пошук завершено 🔍</b></p>
+        {% endif %}
 
         <footer>
             <p>© 2025 Звукові асоціації. Усі права захищено.</p>
             <p>Дані словника частково взято з проєкту 
                 <a href="https://github.com/IlyaSemenov/wikipedia-word-frequency" target="_blank">
-                Wikipedia Word Frequency</a>, <br>
-                © 2015 Ilya Semenov (ліцензія MIT).
+                Wikipedia Word Frequency</a>, © 2015 Ilya Semенов (ліцензія MIT).
             </p>
         </footer>
-
     </div>
+
+    <!-- ДОДАНО: JavaScript для скидання start_index -->
+    <script>
+        document.getElementById("searchButton").addEventListener("click", function() {
+            // при натисканні на кнопку "Пошук" обнуляємо start_index
+            document.getElementById("start_index").value = 0;
+        });
+    </script>
 </body>
 </html>

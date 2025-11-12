@@ -1,45 +1,43 @@
 from flask import Flask, render_template, request
-import requests
+import os
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024  # ліміт 1 МБ
+CHUNK_SIZE = 10  # показувати по 10 слів
 
-# --- Глобальні змінні ---
-WORDS = []
+# --- Мапа схожих букв ---
 pairs = {
     'б': 'п', 'п': 'б', 'д': 'т', 'т': 'д', 'г': 'х', 'х': 'г',
     'з': 'с', 'с': 'з', 'ж': 'ш', 'ш': 'ж', 'дж': 'ч', 'ч': 'дж',
     'щ': 'ш', 'дз': 'ц', 'ц': 'дз', 'в': 'ф', 'ф': 'в',
     'ц': 'с', 'е': 'и', 'и': 'е', 'а': 'о', 'о': 'а',
-    'і': 'и', 'я': 'й', 'й': 'я', 'ю': 'й', 'є': 'й',
-    'ї': 'й'
+    'і': 'и', 'я': 'й', 'й': 'я', 'ю': 'й', 'є': 'й', 'ї': 'й'
 }
 
-# --- Завантаження слів ---
-def load_words_from_github(url):
-    print("🌐 Завантаження clean_words.txt з GitHub...")
+# --- Функції ---
+def read_words(file_path):
+    """Зчитує слова з файлу, уникаючи дублювання."""
     try:
-        resp = requests.get(url)
-        resp.raise_for_status()
-        resp.encoding = "utf-8"
-        words = sorted(
-            [w.strip().lower() for w in resp.text.split() if 4 < len(w.strip()) <= 11]
-        )
-        print(f"✅ Завантажено {len(words):,} слів.")
-        return words
-    except Exception as e:
-        print(f"❌ Помилка завантаження: {e}")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return sorted(set(f.read().split()), key=lambda w: (len(w), w))
+    except UnicodeDecodeError:
+        with open(file_path, 'r', encoding='cp1251') as f:
+            return sorted(set(f.read().split()), key=lambda w: (len(w), w))
+    except FileNotFoundError:
+        print("❌ Файл не знайдено.")
         return []
 
-# --- Порівняння ---
+
 def matches_exact(word, letters):
+    """Перевірка на точну послідовність букв."""
     pos = 0
     for ch in word:
         if pos < len(letters) and ch == letters[pos]:
             pos += 1
     return pos == len(letters)
 
+
 def matches_similar(word, letters):
+    """Перевірка з урахуванням схожих звуків."""
     pos = 0
     for ch in word:
         if pos < len(letters):
@@ -48,63 +46,94 @@ def matches_similar(word, letters):
                 pos += 1
     return pos == len(letters)
 
-# --- Завантаження при старті ---
-@app.before_first_request
-def init_words():
-    global WORDS
-    if not WORDS:
-        WORDS = load_words_from_github(
-            "https://raw.githubusercontent.com/Sabo81/phonetic_app/main/clean_words.txt"
-        )
+
+# --- Ініціалізація ---
+FILE_PATH = os.path.join(os.path.dirname(__file__), "clean_words.txt")
+
+
+# Цей рядок визначає шлях до файлу відносно поточного скрипта
+#FILE_PATH = os.path.join(os.path.dirname(__file__), "clean_words.txt")
+
+# Тепер ви можете використовувати змінну FILE_PATH у своєму коді:
+print(f"Шлях до файлу: {FILE_PATH}")
+
+try:
+    with open(FILE_PATH, 'r', encoding='utf-8') as file:
+        content = file.read()
+        print("Вміст файлу успішно прочитано.")
+except FileNotFoundError:
+    print(f"Помилка: Файл не знайдено за шляхом {FILE_PATH}")
+
+
+print("🚀 Завантаження словника...")
+WORDS = read_words(FILE_PATH)
+print(f"✅ Завантажено {len(WORDS):,} слів.")
+
 
 # --- Основний маршрут ---
 @app.route("/", methods=["GET", "POST"])
 def index():
-    global WORDS
-    table = None
-    search_done = False
-    letters_to_find = ""
+    letters = ""
+    table = []
     start_index = 0
+    next_index = 0
+    search_done = False
 
     if request.method == "POST":
-        letters_to_find = request.form.get("letters", "").strip().lower()
+        letters = request.form.get("letters", "").strip().lower()
+        action = request.form.get("action", "")
         start_index = int(request.form.get("start_index", 0))
 
-        if letters_to_find:
-            exact, similar = [], []
-            i = start_index
+        # новий пошук → починаємо з 0
+        if action != "next":
+            start_index = 0
 
-            # шукаємо далі від того місця, де зупинились
-            while i < len(WORDS) and len(exact) < 10 and len(similar) < 10:
-                word = WORDS[i]
-                if matches_exact(word, letters_to_find):
-                    exact.append(word)
-                elif matches_similar(word, letters_to_find):
-                    similar.append(word)
-                i += 1
+        if letters:
+            letters_set = set(letters)
 
-            next_index = i
-            if next_index >= len(WORDS):
+            # шукаємо всі збіги
+            exact_matches = [w for w in WORDS if matches_exact(w, letters)]
+            similar_matches = [w for w in WORDS if matches_similar(w, letters)]
+
+            # сортування (як у твоєму CLI варіанті)
+            exact_matches = sorted(exact_matches, key=len)
+            similar_matches = sorted(similar_matches, key=lambda x: (len(set(x) & letters_set), len(x)))
+
+            # порційна видача
+            chunk_exact = exact_matches[start_index:start_index + CHUNK_SIZE]
+            chunk_similar = similar_matches[start_index:start_index + CHUNK_SIZE]
+
+            # якщо списки різної довжини — доповнюємо порожніми клітинками
+            max_len = max(len(chunk_exact), len(chunk_similar))
+            chunk_exact += [""] * (max_len - len(chunk_exact))
+            chunk_similar += [""] * (max_len - len(chunk_similar))
+
+            table = list(zip(chunk_exact, chunk_similar))
+
+            next_index = start_index + CHUNK_SIZE
+            if next_index >= max(len(exact_matches), len(similar_matches)):
                 search_done = True
-            else:
-                search_done = False
-
-            max_len = max(len(exact), len(similar))
-            table = [
-                (exact[j] if j < len(exact) else '', similar[j] if j < len(similar) else '')
-                for j in range(max_len)
-            ]
 
             return render_template(
                 "index.html",
+                letters=letters,
                 table=table,
-                letters=letters_to_find,
-                start_index=next_index,
+                start_index=next_index,  # <-- ключове: тепер передаємо ОНОВЛЕНИЙ індекс
+                next_index=next_index,
                 search_done=search_done
             )
 
-    return render_template("index.html", table=None, letters="", start_index=0, search_done=False)
+    # перше завантаження сторінки
+    return render_template(
+        "index.html",
+        letters=letters,
+        table=None,
+        start_index=0,
+        next_index=0,
+        search_done=False
+    )
+
 
 # --- Запуск ---
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=10000, debug=True)
