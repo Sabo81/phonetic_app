@@ -48,7 +48,8 @@ def matches_similar(word, letters):
 
 
 # --- Ініціалізація ---
-FILE_PATH = os.path.join(os.path.dirname(__file__), "clean_words.txt")
+FILE_PATH = os.path.join(os.path.dirname(__file__), "clean_words_cache.txt")
+
 
 
 # Цей рядок визначає шлях до файлу відносно поточного скрипта
