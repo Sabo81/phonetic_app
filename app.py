@@ -48,25 +48,37 @@ def matches_similar(word, letters):
 
 
 # --- Ініціалізація ---
+# FILE_PATH = os.path.join(os.path.dirname(__file__), "clean_words_cache.txt")
+
+
+
+# # Цей рядок визначає шлях до файлу відносно поточного скрипта
+# #FILE_PATH = os.path.join(os.path.dirname(__file__), "clean_words.txt")
+
+# # Тепер ви можете використовувати змінну FILE_PATH у своєму коді:
+# print(f"Шлях до файлу: {FILE_PATH}")
+
+# try:
+#     with open(FILE_PATH, 'r', encoding='utf-8') as file:
+#         content = file.read()
+#         print("Вміст файлу успішно прочитано.")
+# except FileNotFoundError:
+#     print(f"Помилка: Файл не знайдено за шляхом {FILE_PATH}")
+
+
+# print("🚀 Завантаження словника...")
+
+
+
+URL = "https://raw.githubusercontent.com/Sabo81/phonetic_app/main/clean_words_cache.txt"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "clean_words_cache.txt")
 
+if not os.path.exists(FILE_PATH):
+    print("⬇️ Завантаження clean_words_cache.txt з GitHub...")
+    r = requests.get(URL)
+    with open(FILE_PATH, "wb") as f:
+        f.write(r.content)
 
-
-# Цей рядок визначає шлях до файлу відносно поточного скрипта
-#FILE_PATH = os.path.join(os.path.dirname(__file__), "clean_words.txt")
-
-# Тепер ви можете використовувати змінну FILE_PATH у своєму коді:
-print(f"Шлях до файлу: {FILE_PATH}")
-
-try:
-    with open(FILE_PATH, 'r', encoding='utf-8') as file:
-        content = file.read()
-        print("Вміст файлу успішно прочитано.")
-except FileNotFoundError:
-    print(f"Помилка: Файл не знайдено за шляхом {FILE_PATH}")
-
-
-print("🚀 Завантаження словника...")
 WORDS = read_words(FILE_PATH)
 print(f"✅ Завантажено {len(WORDS):,} слів.")
 
