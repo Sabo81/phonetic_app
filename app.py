@@ -75,7 +75,7 @@ FILE_PATH = os.path.join(os.path.dirname(__file__), "clean_words_cache.txt")
 
 if not os.path.exists(FILE_PATH):
     print("⬇️ Завантаження clean_words_cache.txt з GitHub...")
-    r = requests.get(URL)
+    r = request.get(URL)
     with open(FILE_PATH, "wb") as f:
         f.write(r.content)
 
