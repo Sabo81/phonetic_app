@@ -1,5 +1,5 @@
 venv/
 *.pyc
 __pycache__/
-clean_words_cache.txt
-clean_words.txt
+
+
